@@ -146,16 +146,21 @@ double find_cost_for_ref(const THD *thd, TABLE *table, unsigned keyno,
   num_rows = std::min(num_rows, double(thd->variables.max_seeks_for_key));
   //  The costs can be calculated only if the table is materialized.
   if (table->pos_in_table_list->is_derived_unfinished_materialization()) {
+    trace_access_idx.add_alnum("ref_type", "derived_unfinishted_materialization");
     return worst_seeks;
   }
   if (table->covering_keys.is_set(keyno)) {
     // We can use only index tree
     const Cost_estimate index_read_cost =
         table->file->index_scan_cost(keyno, 1, num_rows);
+    trace_access_idx.add_alnum("ref_type", "index_scan");
+    trace_access_scan.add("index_scan_cost", index_read_cost.total_cost());
     return index_read_cost.total_cost();
   }
   if (keyno == table->s->primary_key &&
       table->file->primary_key_is_clustered()) {
+    trace_access_idx.add_alnum("ref_type", "primary_key_pk");
+    trace_access_scan.add("pk_scan_cost", table_read_cost.total_cost());
     const Cost_estimate table_read_cost =
         table->file->read_cost(keyno, 1, num_rows);
     return table_read_cost.total_cost();
@@ -492,6 +497,7 @@ Key_use *Optimize_table_order::find_best_ref(
               cur_fanout = (double)table->quick_rows[key];
             }
           }
+          trace_access_idx.add_alnum("trace-kong", "first");
           cur_read_cost =
               prefix_rowcount *
               find_cost_for_ref(thd, table, key, cur_fanout, tab->worst_seeks);
@@ -656,7 +662,7 @@ Key_use *Optimize_table_order::find_best_ref(
             cur_fanout = (double)table->quick_rows[key];
           }
         }
-
+        trace_access_idx.add_alnum("trace-kong", "second");
         cur_read_cost =
             prefix_rowcount *
             find_cost_for_ref(thd, table, key, cur_fanout, tab->worst_seeks);
