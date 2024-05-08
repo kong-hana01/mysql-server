@@ -857,7 +857,17 @@ double Optimize_table_order::calculate_scan_cost(
     than FULL: so if RANGE is present, it's always preferred to FULL.
     Here we estimate its cost.
   */
-  if (tab->range_scan()) {
+  if (table->covering_keys.is_clear_all()) {
+    for (Key_use *keyuse = tab->keyuse();
+         keyuse->table_ref == tab->table_ref;) {
+      const uint key = keyuse->key;
+      if (table->covering_keys.is_set(key)) {
+        scan_and_filter_cost =
+            tab->table()->file->index_scan_cost(key, 1, *rows_after_filtering).total_cost();
+        break;
+      }
+    }
+  } else if (tab->range_scan()) {
     trace_access_scan->add_alnum("access_type", "range");
     trace_quick_description(tab->range_scan(), &thd->opt_trace);
     /*
@@ -1151,21 +1161,6 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
     trace_quick_description(tab->range_scan(), &thd->opt_trace);
     trace_access_scan.add("chosen", false)
         .add_alnum("cause", "heuristic_index_cheaper");
-  } else if ((table->file->ha_table_flags() & HA_TABLE_SCAN_ON_INDEX) &&  //(3)
-             !table->covering_keys.is_clear_all() && best_ref &&          //(3)
-             (!tab->range_scan() ||                                       //(3)
-              (tab->range_scan()->type ==
-                   AccessPath::ROWID_INTERSECTION &&               //(3)
-               best_ref->read_cost < tab->range_scan()->cost())))  //(3)
-  {
-    if (tab->range_scan()) {
-      trace_access_scan.add_alnum("access_type", "range");
-      trace_quick_description(tab->range_scan(), &thd->opt_trace);
-    } else
-      trace_access_scan.add_alnum("access_type", "scan");
-
-    trace_access_scan.add("chosen", false)
-        .add_alnum("cause", "covering_index_better_than_full_scan");
   } else if ((table->force_index && best_ref && !tab->range_scan()))  // (4)
   {
     trace_access_scan.add_alnum("access_type", "scan")
