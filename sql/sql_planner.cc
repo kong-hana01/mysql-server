@@ -874,10 +874,11 @@ double Optimize_table_order::calculate_scan_cost(
             "page_read_to_cost",
             table->cost_model()->page_read_cost_index(key, 1.0));
 
-        break;
+        return scan_and_filter_cost;
       }
     }
-  } else if (tab->range_scan()) {
+  }
+  if (tab->range_scan()) {
     trace_access_scan->add_alnum("access_type", "range");
     trace_quick_description(tab->range_scan(), &thd->opt_trace);
     /*
