@@ -858,6 +858,47 @@ double Optimize_table_order::calculate_scan_cost(
     Here we estimate its cost.
   */
   if (!table->covering_keys.is_clear_all()) {
+    uint best = MAX_KEY;
+    const uint usable_clustered_pk =
+        (table->file->primary_key_is_clustered() &&
+         table->s->primary_key != MAX_KEY &&
+         table->covering_keys.is_set(table->s->primary_key))
+            ? table->s->primary_key
+            : MAX_KEY;
+    uint min_length = (uint)~0;
+    for (uint nr = 0; nr < table->s->keys; nr++) {
+      if (nr == usable_clustered_pk) continue;
+      if (table->covering_keys.is_set(nr)) {
+        const KEY &key_ref = table->key_info[nr];
+        assert(!(key_ref.flags & HA_MULTI_VALUED_KEY));
+        if (key_ref.key_length < min_length && !(key_ref.flags & HA_SPATIAL)) {
+          min_length = key_ref.key_length;
+          best = nr;
+        }
+      }
+    }
+    if (usable_clustered_pk != MAX_KEY) {
+      if (best == MAX_KEY ||
+          table->key_info[best].user_defined_key_parts >= table->s->fields)
+        best = usable_clustered_pk;
+    }
+    trace_access_scan->add_alnum("access_type", "try covering index");
+
+    trace_access_scan->add_alnum("key_info", table->key_info[best].name);
+    trace_access_scan->add("key_length", table->key_info[best].key_length);
+    trace_access_scan->add(
+        "page_read_to_cost",
+        table->cost_model()->page_read_cost_index(best, 1.0));
+    trace_access_scan->add(
+        "forecasting covering cost",
+        tab->table()
+            ->file->index_scan_cost(best, 1, *rows_after_filtering)
+            .total_cost());
+  }
+
+  /*
+
+  if (!table->covering_keys.is_clear_all()) {
     for (Key_use *keyuse = tab->keyuse();
          keyuse->table_ref == tab->table_ref;) {
       const uint key = keyuse->key;
@@ -874,10 +915,10 @@ double Optimize_table_order::calculate_scan_cost(
             tab->table()
                 ->file->index_scan_cost(key, 1, *rows_after_filtering)
                 .total_cost());
-
       }
     }
   }
+  */
   if (tab->range_scan()) {
     trace_access_scan->add_alnum("access_type", "range");
     trace_quick_description(tab->range_scan(), &thd->opt_trace);
