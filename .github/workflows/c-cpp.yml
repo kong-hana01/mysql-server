@@ -10,10 +10,14 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./
+        
     steps:
     - uses: actions/checkout@v4
     - name: 쉘 스크립트 실행
-      working-directory: ./
       run: |
+        pwd
         sudo ./deploy.sh
