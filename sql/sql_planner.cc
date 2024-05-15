@@ -864,17 +864,17 @@ double Optimize_table_order::calculate_scan_cost(
       if (table->covering_keys.is_set(key)) {
         trace_access_scan->add_alnum("access_type", "try covering index");
 
-        scan_and_filter_cost =
-            tab->table()
-                ->file->index_scan_cost(key, 1, *rows_after_filtering)
-                .total_cost();
         trace_access_scan->add_alnum("key_info", table->key_info[key].name);
         trace_access_scan->add("key_length", table->key_info[key].key_length);
         trace_access_scan->add(
             "page_read_to_cost",
             table->cost_model()->page_read_cost_index(key, 1.0));
+        trace_access_scan->add(
+            "forecasting covering cost",
+            tab->table()
+                ->file->index_scan_cost(key, 1, *rows_after_filtering)
+                .total_cost());
 
-        return scan_and_filter_cost;
       }
     }
   }
