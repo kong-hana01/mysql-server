@@ -22,4 +22,4 @@ jobs:
         sudo ./deploy.sh
     - name: mysql 서버 실행
       run: | 
-        sudo nohup ./bin/mysqld --user=root &
+        sudo nohup ./build/bin/mysqld --user=root &
