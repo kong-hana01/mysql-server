@@ -19,5 +19,7 @@ jobs:
     - uses: actions/checkout@v4
     - name: 쉘 스크립트 실행
       run: |
-        pwd
         sudo ./deploy.sh
+    - name: mysql 서버 실행
+      run: | 
+        sudo nohup ./bin/mysqld --user=root &
