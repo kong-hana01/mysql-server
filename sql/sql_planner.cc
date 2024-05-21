@@ -710,13 +710,13 @@ Key_use *Optimize_table_order::find_best_ref(
 
       trace_access_idx.add_alnum("access_type", "fulltext")
           .add_utf8("index", keyinfo->name);
-
+      /*
       if (best_found_keytype < NOT_UNIQUE) {
         trace_access_idx.add("chosen", false)
             .add_alnum("cause", "heuristic_eqref_already_found");
         // Ignore test_all_ref_keys, semijoin loosescan never uses fulltext
         continue;
-      }
+      }*/
       // Actually it should be cur_fanout=0.0 (yes!) but 1.0 is probably safer
       cur_read_cost = prev_record_reads(join, idx, table_deps) *
                       table->cost_model()->page_read_cost(1.0);
