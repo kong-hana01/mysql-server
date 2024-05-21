@@ -893,8 +893,22 @@ double Optimize_table_order::calculate_scan_cost(
         tab->table()
             ->file->index_scan_cost(best, 1, *rows_after_filtering)
             .total_cost();
+    trace_access_scan->add(
+        "covering index read cost",
+        tab->table()
+            ->file->index_scan_cost(best, 1, *rows_after_filtering)
+            .total_cost());
+    /*
 
-  } else if (tab->range_scan()) {
+    Cost_estimate key_read_time =
+        tab->table()
+            ->file->index_scan_cost(best, 1, *rows_after_filtering);
+    key_read_time.add_cpu(cost_model->row_evaluate_cost(
+        static_cast<double>(*rows_after_filtering)));
+    scan_and_filter_cost = key_read_time.total_cost();
+    */
+  }
+  if (tab->range_scan()) {
     trace_access_scan->add_alnum("access_type", "range");
     trace_quick_description(tab->range_scan(), &thd->opt_trace);
     /*
