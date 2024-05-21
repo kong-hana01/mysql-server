@@ -766,7 +766,7 @@ Key_use *Optimize_table_order::find_best_ref(
 
     if (best_found_keytype == CLUSTERED_PK) {
       trace_access_idx.add_alnum("cause", "clustered_pk_chosen_by_heuristics");
-      if (unlikely(!test_all_ref_keys)) break;
+      // if (unlikely(!test_all_ref_keys)) break;
     }
   }  // for each key
 
@@ -889,13 +889,12 @@ double Optimize_table_order::calculate_scan_cost(
     trace_access_scan->add(
         "page_read_to_cost",
         table->cost_model()->page_read_cost_index(best, 1.0));
-    trace_access_scan->add(
-        "covering index read cost",
+    scan_and_filter_cost =
         tab->table()
             ->file->index_scan_cost(best, 1, *rows_after_filtering)
-            .total_cost());
-  }
-  if (tab->range_scan()) {
+            .total_cost();
+
+  } else if (tab->range_scan()) {
     trace_access_scan->add_alnum("access_type", "range");
     trace_quick_description(tab->range_scan(), &thd->opt_trace);
     /*
