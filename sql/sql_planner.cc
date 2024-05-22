@@ -750,16 +750,17 @@ Key_use *Optimize_table_order::find_best_ref(
 
     if (best_found_keytype >= NOT_UNIQUE && cur_keytype >= NOT_UNIQUE) {
       trace_access_idx.add_alnum("candidates", "first condition");
-      new_candidate = cur_ref_cost <= best_ref_cost;  // 1
+      new_candidate = cur_ref_cost < best_ref_cost;  // 1
     } else if (best_found_keytype == cur_keytype) {
       trace_access_idx.add_alnum("candidates", "second condition");
       new_candidate = cur_ref_cost < best_ref_cost;  // 2
     } else if (best_found_keytype > cur_keytype) {
       new_candidate = true;  // 3
       trace_access_idx.add_alnum("candidates", "third condition");
-    } else {
+    } 
+    /* else {
       new_candidate = cur_ref_cost <= best_ref_cost;
-    }
+    }*/
     if (new_candidate) {
       *ref_depend_map = table_deps;
       *used_key_parts = cur_used_keyparts;
