@@ -409,16 +409,16 @@ Key_use *Optimize_table_order::find_best_ref(
 
       trace_access_idx.add_utf8("index", keyinfo->name);
 
-      //if (cur_keytype > best_found_keytype) {
-      //  trace_access_idx.add("chosen", false)
-      //      .add_alnum("cause", "heuristic_eqref_already_found");
-      //  if (unlikely(!test_all_ref_keys))
-      //    continue;
-      //  else {
-          /*
-            key will be rejected further down, after we compute its
-            bound_keyparts/read_cost/fanout.
-      //    */
+      // if (cur_keytype > best_found_keytype) {
+      //   trace_access_idx.add("chosen", false)
+      //       .add_alnum("cause", "heuristic_eqref_already_found");
+      //   if (unlikely(!test_all_ref_keys))
+      //     continue;
+      //   else {
+      /*
+        key will be rejected further down, after we compute its
+        bound_keyparts/read_cost/fanout.
+  //    */
       //  }
       //}
 
@@ -429,6 +429,7 @@ Key_use *Optimize_table_order::find_best_ref(
         if (keyinfo->flags & HA_NOSAME &&
             ((keyinfo->flags & HA_NULL_PART_KEY) == 0 ||
              all_key_parts_non_null)) {
+          trace_access_idx.add_alnum("trace", "costs parts");
           cur_read_cost = prev_record_reads(join, idx, table_deps) *
                           table->cost_model()->page_read_cost(1.0);
           cur_fanout = 1.0;
@@ -747,13 +748,16 @@ Key_use *Optimize_table_order::find_best_ref(
     */
     bool new_candidate = false;
 
-    if (best_found_keytype >= NOT_UNIQUE && cur_keytype >= NOT_UNIQUE)
-      new_candidate = cur_ref_cost < best_ref_cost;  // 1
-    else if (best_found_keytype == cur_keytype)
+    if (best_found_keytype >= NOT_UNIQUE && cur_keytype >= NOT_UNIQUE) {
+      trace_access_idx.add_alnum("candidates", "first condition");
+      new_candidate = cur_ref_cost <= best_ref_cost;  // 1
+    } else if (best_found_keytype == cur_keytype) {
+      trace_access_idx.add_alnum("candidates", "second condition");
       new_candidate = cur_ref_cost < best_ref_cost;  // 2
-    else if (best_found_keytype > cur_keytype)
+    } else if (best_found_keytype > cur_keytype) {
       new_candidate = true;  // 3
-
+      trace_access_idx.add_alnum("candidates", "third condition");
+    }
     if (new_candidate) {
       *ref_depend_map = table_deps;
       *used_key_parts = cur_used_keyparts;
