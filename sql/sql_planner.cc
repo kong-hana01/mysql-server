@@ -409,18 +409,18 @@ Key_use *Optimize_table_order::find_best_ref(
 
       trace_access_idx.add_utf8("index", keyinfo->name);
 
-      if (cur_keytype > best_found_keytype) {
-        trace_access_idx.add("chosen", false)
-            .add_alnum("cause", "heuristic_eqref_already_found");
-        if (unlikely(!test_all_ref_keys))
-          continue;
-        else {
+      //if (cur_keytype > best_found_keytype) {
+      //  trace_access_idx.add("chosen", false)
+      //      .add_alnum("cause", "heuristic_eqref_already_found");
+      //  if (unlikely(!test_all_ref_keys))
+      //    continue;
+      //  else {
           /*
             key will be rejected further down, after we compute its
             bound_keyparts/read_cost/fanout.
-          */
-        }
-      }
+      //    */
+      //  }
+      //}
 
       // Check if we found full key
       if (all_key_parts_covered && !ref_or_null_part) /* use eq key */
