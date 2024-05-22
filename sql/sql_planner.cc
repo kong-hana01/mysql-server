@@ -757,6 +757,8 @@ Key_use *Optimize_table_order::find_best_ref(
     } else if (best_found_keytype > cur_keytype) {
       new_candidate = true;  // 3
       trace_access_idx.add_alnum("candidates", "third condition");
+    } else {
+      new_candidate = cur_ref_cost <= best_ref_cost;
     }
     if (new_candidate) {
       *ref_depend_map = table_deps;
