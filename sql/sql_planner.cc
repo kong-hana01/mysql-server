@@ -757,9 +757,9 @@ Key_use *Optimize_table_order::find_best_ref(
     } else if (best_found_keytype > cur_keytype) {
       new_candidate = true;  // 3
       trace_access_idx.add_alnum("candidates", "third condition");
-    } else if (table->covering_keys.is_set(key)) {  // covering index인 경우 그대로 적용
-      new_candidate = true;
-    }
+    } // else if (table->covering_keys.is_set(key)) {  // covering index인 경우 그대로 적용
+      // new_candidate = true;
+    // }
     if (new_candidate) {
       *ref_depend_map = table_deps;
       *used_key_parts = cur_used_keyparts;
