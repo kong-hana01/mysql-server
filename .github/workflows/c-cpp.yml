@@ -1,0 +1,25 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "trunk" ]
+  pull_request:
+    branches: [ "trunk" ]
+
+jobs:
+  build:
+
+    runs-on: self-hosted
+    defaults:
+      run:
+        shell: bash
+        working-directory: /home/ubuntu
+        
+    steps:
+    - uses: actions/checkout@v4
+    - name: 쉘 스크립트 실행
+      run: |
+        sudo ./deploy.sh
+    - name: mysql 서버 실행
+      run: | 
+        sudo nohup ./build/bin/mysqld --user=root &

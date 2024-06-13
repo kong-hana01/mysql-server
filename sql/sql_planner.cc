@@ -409,18 +409,18 @@ Key_use *Optimize_table_order::find_best_ref(
 
       trace_access_idx.add_utf8("index", keyinfo->name);
 
-      if (cur_keytype > best_found_keytype) {
-        trace_access_idx.add("chosen", false)
-            .add_alnum("cause", "heuristic_eqref_already_found");
-        if (unlikely(!test_all_ref_keys))
-          continue;
-        else {
-          /*
-            key will be rejected further down, after we compute its
-            bound_keyparts/read_cost/fanout.
-          */
-        }
-      }
+      // if (cur_keytype > best_found_keytype) {
+      //   trace_access_idx.add("chosen", false)
+      //       .add_alnum("cause", "heuristic_eqref_already_found");
+      //   if (unlikely(!test_all_ref_keys))
+      //     continue;
+      //   else {
+      /*
+        key will be rejected further down, after we compute its
+        bound_keyparts/read_cost/fanout.
+  //    */
+      //  }
+      //}
 
       // Check if we found full key
       if (all_key_parts_covered && !ref_or_null_part) /* use eq key */
@@ -429,6 +429,7 @@ Key_use *Optimize_table_order::find_best_ref(
         if (keyinfo->flags & HA_NOSAME &&
             ((keyinfo->flags & HA_NULL_PART_KEY) == 0 ||
              all_key_parts_non_null)) {
+          trace_access_idx.add_alnum("trace", "costs parts");
           cur_read_cost = prev_record_reads(join, idx, table_deps) *
                           table->cost_model()->page_read_cost(1.0);
           cur_fanout = 1.0;
@@ -491,6 +492,27 @@ Key_use *Optimize_table_order::find_best_ref(
                 cur_fanout > (double)table->quick_rows[key]) {
               cur_fanout = (double)table->quick_rows[key];
             }
+          }
+          trace_access_idx.add_alnum("trace-kong", "first");
+          if (table->pos_in_table_list
+                  ->is_derived_unfinished_materialization()) {
+            trace_access_idx.add_alnum("ref_type",
+                                       "derived_unfinishted_materialization");
+          }
+          if (table->covering_keys.is_set(key)) {
+            // We can use only index tree
+            const Cost_estimate index_read_cost =
+                table->file->index_scan_cost(key, 1, cur_fanout);
+            trace_access_idx.add_alnum("ref_type", "index_scan");
+            trace_access_idx.add("index_scan_cost",
+                                 index_read_cost.total_cost());
+          }
+          if (key == table->s->primary_key &&
+              table->file->primary_key_is_clustered()) {
+            const Cost_estimate table_read_cost =
+                table->file->read_cost(key, 1, cur_fanout);
+            trace_access_idx.add_alnum("ref_type", "primary_key_pk");
+            trace_access_idx.add("pk_scan_cost", table_read_cost.total_cost());
           }
           cur_read_cost =
               prefix_rowcount *
@@ -656,7 +678,25 @@ Key_use *Optimize_table_order::find_best_ref(
             cur_fanout = (double)table->quick_rows[key];
           }
         }
-
+        trace_access_idx.add_alnum("trace-kong", "second");
+        if (table->pos_in_table_list->is_derived_unfinished_materialization()) {
+          trace_access_idx.add_alnum("ref_type",
+                                     "derived_unfinishted_materialization");
+        }
+        if (table->covering_keys.is_set(key)) {
+          // We can use only index tree
+          const Cost_estimate index_read_cost =
+              table->file->index_scan_cost(key, 1, cur_fanout);
+          trace_access_idx.add_alnum("ref_type", "index_scan");
+          trace_access_idx.add("index_scan_cost", index_read_cost.total_cost());
+        }
+        if (key == table->s->primary_key &&
+            table->file->primary_key_is_clustered()) {
+          const Cost_estimate table_read_cost =
+              table->file->read_cost(key, 1, cur_fanout);
+          trace_access_idx.add_alnum("ref_type", "primary_key_pk");
+          trace_access_idx.add("pk_scan_cost", table_read_cost.total_cost());
+        }
         cur_read_cost =
             prefix_rowcount *
             find_cost_for_ref(thd, table, key, cur_fanout, tab->worst_seeks);
@@ -671,13 +711,13 @@ Key_use *Optimize_table_order::find_best_ref(
 
       trace_access_idx.add_alnum("access_type", "fulltext")
           .add_utf8("index", keyinfo->name);
-
+      /*
       if (best_found_keytype < NOT_UNIQUE) {
         trace_access_idx.add("chosen", false)
             .add_alnum("cause", "heuristic_eqref_already_found");
         // Ignore test_all_ref_keys, semijoin loosescan never uses fulltext
         continue;
-      }
+      }*/
       // Actually it should be cur_fanout=0.0 (yes!) but 1.0 is probably safer
       cur_read_cost = prev_record_reads(join, idx, table_deps) *
                       table->cost_model()->page_read_cost(1.0);
@@ -708,13 +748,19 @@ Key_use *Optimize_table_order::find_best_ref(
     */
     bool new_candidate = false;
 
-    if (best_found_keytype >= NOT_UNIQUE && cur_keytype >= NOT_UNIQUE)
+    if (best_found_keytype >= NOT_UNIQUE && cur_keytype >= NOT_UNIQUE) {
+      trace_access_idx.add_alnum("candidates", "first condition");
       new_candidate = cur_ref_cost < best_ref_cost;  // 1
-    else if (best_found_keytype == cur_keytype)
+    } else if (best_found_keytype == cur_keytype) {
+      trace_access_idx.add_alnum("candidates", "second condition");
       new_candidate = cur_ref_cost < best_ref_cost;  // 2
-    else if (best_found_keytype > cur_keytype)
+    } else if (best_found_keytype > cur_keytype) {
       new_candidate = true;  // 3
-
+      trace_access_idx.add_alnum("candidates", "third condition");
+    } else if (table->covering_keys.is_set(key)) {  // covering index인 경우 그대로 적용
+        new_candidate = true;
+        trace_access_idx.add("last best cost", best_ref_cost);
+    }
     if (new_candidate) {
       *ref_depend_map = table_deps;
       *used_key_parts = cur_used_keyparts;
@@ -727,7 +773,7 @@ Key_use *Optimize_table_order::find_best_ref(
 
     if (best_found_keytype == CLUSTERED_PK) {
       trace_access_idx.add_alnum("cause", "clustered_pk_chosen_by_heuristics");
-      if (unlikely(!test_all_ref_keys)) break;
+      // if (unlikely(!test_all_ref_keys)) break;
     }
   }  // for each key
 
@@ -818,6 +864,57 @@ double Optimize_table_order::calculate_scan_cost(
     than FULL: so if RANGE is present, it's always preferred to FULL.
     Here we estimate its cost.
   */
+  if (!table->covering_keys.is_clear_all()) {
+    uint best = MAX_KEY;
+    const uint usable_clustered_pk =
+        (table->file->primary_key_is_clustered() &&
+         table->s->primary_key != MAX_KEY &&
+         table->covering_keys.is_set(table->s->primary_key))
+            ? table->s->primary_key
+            : MAX_KEY;
+    uint min_length = (uint)~0;
+    for (uint nr = 0; nr < table->s->keys; nr++) {
+      if (nr == usable_clustered_pk) continue;
+      if (table->covering_keys.is_set(nr)) {
+        const KEY &key_ref = table->key_info[nr];
+        assert(!(key_ref.flags & HA_MULTI_VALUED_KEY));
+        if (key_ref.key_length < min_length && !(key_ref.flags & HA_SPATIAL)) {
+          min_length = key_ref.key_length;
+          best = nr;
+        }
+      }
+    }
+    if (usable_clustered_pk != MAX_KEY) {
+      if (best == MAX_KEY ||
+          table->key_info[best].user_defined_key_parts >= table->s->fields)
+        best = usable_clustered_pk;
+    }
+    trace_access_scan->add_alnum("access_type", "try covering index");
+
+    trace_access_scan->add_alnum("key_info", table->key_info[best].name);
+    trace_access_scan->add("key_length", table->key_info[best].key_length);
+    trace_access_scan->add(
+        "page_read_to_cost",
+        table->cost_model()->page_read_cost_index(best, 1.0));
+    scan_and_filter_cost =
+        tab->table()
+            ->file->index_scan_cost(best, 1, *rows_after_filtering)
+            .total_cost();
+    trace_access_scan->add(
+        "covering index read cost",
+        tab->table()
+            ->file->index_scan_cost(best, 1, *rows_after_filtering)
+            .total_cost());
+    /*
+
+    Cost_estimate key_read_time =
+        tab->table()
+            ->file->index_scan_cost(best, 1, *rows_after_filtering);
+    key_read_time.add_cpu(cost_model->row_evaluate_cost(
+        static_cast<double>(*rows_after_filtering)));
+    scan_and_filter_cost = key_read_time.total_cost();
+    */
+  }
   if (tab->range_scan()) {
     trace_access_scan->add_alnum("access_type", "range");
     trace_quick_description(tab->range_scan(), &thd->opt_trace);
